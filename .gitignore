@@ -1,0 +1,5 @@
+.cache/
+__pycache__/
+.venv/
+# Zoom credentials saved from the page
+zoom.json

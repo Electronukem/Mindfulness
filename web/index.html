@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mindfulness</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2307081a'/%3E%3Ccircle cx='11' cy='13' r='2.4' fill='%23c4b5ff'/%3E%3Ccircle cx='21' cy='11' r='1.8' fill='%2389d4ff'/%3E%3Ccircle cx='18' cy='21' r='2.6' fill='%23ffb8d9'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="sky" aria-hidden="true"></canvas>
+
+  <main id="intro" class="screen">
+    <h1>Mindfulness</h1>
+
+    <div class="tabs" role="tablist" aria-label="What to explore">
+      <button id="tab-repo" role="tab" type="button" aria-selected="true" aria-controls="repo-pane">A GitHub repository</button>
+      <button id="tab-meeting" role="tab" type="button" aria-selected="false" aria-controls="meeting-pane">A recorded meeting</button>
+    </div>
+
+    <section id="repo-pane" class="pane" role="tabpanel" aria-labelledby="tab-repo">
+      <p class="lede">
+        Paste a GitHub repository. graphify maps its code into a slow constellation,
+        your commits replay one breath at a time, and the light plays its own music.
+      </p>
+      <form id="repo-form" autocomplete="off">
+        <label for="repo-url" class="sr-only">GitHub repository</label>
+        <input id="repo-url" name="url" type="text" inputmode="url" placeholder="github.com/owner/repository" spellcheck="false" required>
+        <button type="submit">Begin</button>
+      </form>
+      <label class="check"><input type="checkbox" id="refresh"> Fetch it fresh instead of using the saved copy</label>
+    </section>
+
+    <section id="meeting-pane" class="pane" role="tabpanel" aria-labelledby="tab-meeting" hidden>
+      <p class="lede">
+        Add a meeting recording and the slides that went with it. You’ll get a calm walk through
+        what was said, one key idea at a time, and study notes to keep.
+      </p>
+      <div class="meeting-inputs">
+        <div class="sources">
+          <label id="media-drop" class="drop">
+            <input id="media-file" type="file" accept="video/*,audio/*,.mp4,.mov,.m4a,.mp3,.wav,.webm,.mkv,.m4v,.ogg,.avi">
+            <span class="drop-title">Recording</span>
+            <span id="media-hint" class="drop-hint">Drop a video or audio file, or click to choose</span>
+          </label>
+          <span class="or">or</span>
+          <button id="zoom-pick" class="drop" type="button" aria-controls="zoom-box">
+            <span class="drop-title">Zoom</span>
+            <span id="zoom-hint" class="drop-hint">Choose a cloud recording</span>
+          </button>
+        </div>
+
+        <div id="zoom-box" class="zoom-box" hidden>
+          <div id="zoom-connected" hidden>
+            <p class="zoom-head">Recent cloud recordings for <span id="zoom-user"></span>
+              <button id="zoom-forget" class="link" type="button">Disconnect</button></p>
+            <ul id="zoom-list" class="zoom-list"></ul>
+          </div>
+          <div id="zoom-setup">
+            <p class="zoom-head">Connect your Zoom account</p>
+            <ol class="zoom-steps">
+              <li>In the <a href="https://marketplace.zoom.us/" target="_blank" rel="noopener">Zoom App Marketplace</a>, choose Develop → Build App → <strong>Server-to-Server OAuth</strong>.</li>
+              <li>Under Scopes, add <code id="zoom-scope">cloud_recording:read:list_user_recordings:admin</code>, then activate the app.</li>
+              <li>Copy its Account ID, Client ID and Client secret here. They’re saved only on this computer, in <code>zoom.json</code>.</li>
+            </ol>
+          </div>
+          <form id="zoom-form" class="zoom-form" autocomplete="off">
+            <input name="account_id" type="text" placeholder="Account ID" required spellcheck="false" aria-label="Zoom Account ID">
+            <input name="client_id" type="text" placeholder="Client ID" required spellcheck="false" aria-label="Zoom Client ID">
+            <input name="client_secret" type="password" placeholder="Client secret" required aria-label="Zoom Client secret">
+            <input name="user" type="email" placeholder="Your Zoom email" required aria-label="Your Zoom email">
+            <button type="submit">Connect</button>
+            <p id="zoom-problem" class="problem" role="alert" hidden></p>
+          </form>
+        </div>
+
+        <label id="docs-drop" class="drop wide">
+          <input id="doc-files" type="file" multiple accept=".pdf,.pptx,.docx,.md,.txt">
+          <span class="drop-title">Slides or notes <em>optional</em></span>
+          <span class="drop-hint">PowerPoint, PDF, Word, Markdown or text</span>
+        </label>
+        <ul id="doc-list" class="doc-list"></ul>
+
+        <form id="meeting-form" class="meeting-go" autocomplete="off">
+          <label for="meeting-title" class="sr-only">Meeting title</label>
+          <input id="meeting-title" type="text" placeholder="What was the meeting about? (optional)">
+          <button type="submit">Begin</button>
+        </form>
+        <p id="meeting-status" class="status" hidden></p>
+      </div>
+    </section>
+
+    <div id="recent" class="recent" hidden></div>
+    <p id="error" class="error" role="alert" hidden></p>
+    <div id="notice" class="notice" hidden></div>
+    <p class="hint">Turn your sound on. Once it starts, F is full screen, M is mute and O opens the orchestra.</p>
+  </main>
+
+  <section id="progress" class="screen" hidden aria-live="polite">
+    <div class="breath" aria-hidden="true">
+      <div class="orb"></div>
+      <span class="in">breathe in</span>
+      <span class="out">breathe out</span>
+    </div>
+    <p id="step">Getting ready</p>
+    <pre id="log"></pre>
+  </section>
+
+  <div id="hud" hidden>
+    <header class="hud-top fade">
+      <div>
+        <a id="repo-name" target="_blank" rel="noopener"></a>
+        <p id="mood"></p>
+      </div>
+      <div class="hud-actions">
+        <button id="notes-toggle" class="ghost" type="button" aria-expanded="false" aria-controls="notes-panel" title="Study notes (N)" hidden>Study notes</button>
+        <button id="about" class="ghost" type="button" aria-expanded="false" aria-controls="about-panel">Why it sounds like this</button>
+      </div>
+    </header>
+    <aside id="about-panel" class="panel" hidden>
+      <ul id="reasons"></ul>
+    </aside>
+
+    <aside id="notes-panel" class="panel notes" hidden aria-label="Study notes">
+      <header class="notes-head">
+        <div>
+          <h2>Study notes</h2>
+          <p id="notes-meta" class="muted"></p>
+        </div>
+        <button id="download-notes" class="ghost" type="button">Download .md</button>
+      </header>
+      <p id="notes-summary" class="summary"></p>
+      <section>
+        <h3>Chapters</h3>
+        <ol id="notes-chapters" class="chapters"></ol>
+      </section>
+      <section>
+        <h3>Key terms</h3>
+        <ul id="notes-terms"></ul>
+      </section>
+      <section>
+        <h3>Decisions</h3>
+        <ul id="notes-decisions"></ul>
+      </section>
+      <section>
+        <h3>Action items</h3>
+        <ul id="notes-actions"></ul>
+      </section>
+      <section>
+        <h3>Open questions</h3>
+        <ul id="notes-questions"></ul>
+      </section>
+      <section>
+        <details>
+          <summary>Every key point</summary>
+          <ol id="notes-points" class="points"></ol>
+        </details>
+      </section>
+      <p id="notes-source" class="muted small"></p>
+    </aside>
+
+    <aside id="orchestra" class="panel orchestra" hidden aria-label="Orchestra and theme">
+      <section>
+        <h2>Theme</h2>
+        <div id="themes" class="themes" role="group" aria-label="Theme"></div>
+      </section>
+      <section>
+        <h2>Ensemble <span>plays the chords, one per breath</span></h2>
+        <div id="ensemble"></div>
+      </section>
+      <section>
+        <h2>Soloists <span>each takes some of the coloured clusters</span></h2>
+        <div id="soloists"></div>
+      </section>
+      <button id="reset-orchestra" class="ghost" type="button">Back to what your work suggests</button>
+    </aside>
+
+    <div id="caption" class="fading">
+      <p id="caption-chapter"></p>
+      <p id="caption-msg"></p>
+      <p id="caption-meta"></p>
+    </div>
+
+    <nav class="controls fade" aria-label="Playback">
+      <button id="prev-point" class="icon study-only" type="button" aria-label="Previous point" title="Previous point (←)" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button id="hold-point" class="icon study-only" type="button" aria-pressed="false" aria-label="Hold this point" title="Hold this point (space)" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg>
+      </button>
+      <button id="next-point" class="icon study-only" type="button" aria-label="Next point" title="Next point (→)" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <button id="sound" class="icon" type="button" aria-pressed="true" aria-label="Sound" title="Sound (M)">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/>
+          <path class="waves" d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10"/>
+          <path class="cross" d="M16 10l4 4M20 10l-4 4"/>
+        </svg>
+      </button>
+      <input id="volume" type="range" min="0" max="1" step="0.01" value="0.7" aria-label="Volume">
+      <button id="fullscreen" class="icon" type="button" aria-label="Full screen" title="Full screen (F)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+      <button id="orchestra-toggle" class="ghost with-icon" type="button" aria-expanded="false" aria-controls="orchestra" title="Orchestra & theme (O)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>
+        Orchestra
+      </button>
+      <button id="again" class="ghost" type="button"><span class="wide">Start over</span><span class="narrow">New</span></button>
+    </nav>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script src="themes.js"></script>
+  <script src="music.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
